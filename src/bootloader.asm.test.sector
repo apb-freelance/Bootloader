@@ -1,0 +1,71 @@
+; demo_carga_sectores.asm - Muestra cómo cargar y mostrar varios sectores manualmente
+
+org 0x7C00
+
+mensaje_0 db "Sector 0 ejecutado por BIOS", 13, 10, 0
+mensaje_1 db "Sector 1 cargado con int 13h", 13, 10, 0
+mensaje_2 db "Sector 2 cargado con int 13h", 13, 10, 0
+
+start:
+    mov ah, 0x0E
+    mov al, 'X'
+    int 10h
+    jmp $
+    ; Modo texto 80x25 limpio
+    mov ah, 0
+    mov al, 3
+    int 10h
+
+    ; Mostrar mensaje del MBR
+    mov si, mensaje_0
+    call print_string
+
+    ; Leer sector 1 (carga manual)
+    mov ah, 02h
+    mov al, 1
+    mov ch, 0
+    mov cl, 2          ; Sector 2 en numeración BIOS = sector físico 1
+    mov dh, 0
+    mov dl, 80h        ; o 0 si usas -fda
+    mov bx, 0x0600
+    mov ax, 0x0000
+    mov es, ax
+    int 13h
+    jc error
+
+    ; Mostrar mensaje del sector 1 cargado
+    mov si, 0x0600
+    call print_string
+
+    ; Leer sector 2 (carga manual)
+    mov ah, 02h
+    mov al, 1
+    mov cl, 3
+    int 13h
+    jc error
+
+    mov si, 0x0600
+    call print_string
+    jmp $
+
+error:
+    mov si, error_msg
+    call print_string
+    jmp $
+
+print_string:
+.next:
+    lodsb
+    or al, al
+    jz .done
+    mov ah, 0x0E
+    int 10h
+    jmp .next
+.done:
+    ret
+
+error_msg db "Error de lectura.", 0
+
+times 510 - ($ - $$) db 0
+
+dw 0xAA55

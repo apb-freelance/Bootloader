@@ -1,0 +1,52 @@
+org 0x7C00
+
+start:
+    ; Modo texto limpio
+    mov ah, 0
+    mov al, 3
+    int 10h
+
+    ; Mensaje desde el MBR
+    mov si, mensaje_mbr
+    call print_string
+
+    ; Leer sector 1 físico (CL=2) y cargarlo en 0x0600
+    mov ah, 02h       ; función: leer sectores
+    mov al, 1         ; cuántos sectores
+    mov ch, 0         ; cilindro 0
+    mov cl, 2         ; sector 2 BIOS = físico 1
+    mov dh, 0         ; cabeza 0
+    mov dl, 80h       ; unidad de disco (usa 0 si estás con -fda)
+    mov bx, 0x0600    ; offset
+    mov ax, 0x0000
+    mov es, ax
+    int 13h
+    jc error_lectura
+
+    ; Mostrar mensaje desde el sector leído
+    mov si, 0x0600
+    call print_string
+    jmp $
+
+error_lectura:
+    mov si, error_msg
+    call print_string
+    jmp $
+
+; --- Rutina para imprimir cadena de texto ---
+print_string:
+.next:
+    lodsb
+    or al, al
+    jz .fin
+    mov ah, 0x0E
+    int 10h
+    jmp .next
+.fin:
+    ret
+
+mensaje_mbr db "MBR cargado. Leyendo sector 1...", 13, 10, 0
+error_msg   db "Error al leer el sector 1.", 13, 10, 0
+
+times 510 - ($ - $$) db 0
+dw 0xAA55

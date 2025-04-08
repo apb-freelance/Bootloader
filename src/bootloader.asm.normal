@@ -1,0 +1,71 @@
+; boot.asm - Cargador principal (sector 0) que lee y ejecuta un segundo sector (stage 2)
+
+org 0x7C00
+
+; --- 🧾 Declaración de datos ---
+
+mensaje_inicio db "Bootloader: cargando stage 2...", 0
+mensaje_ok      db 13, 10, "Bootloader OK. Saltando a stage 2...", 0
+mensaje_error   db 13, 10, "Error al leer el stage 2.", 0
+
+; --- 🧠 Código principal ---
+
+start:
+    mov ah, 0x0E
+    mov al, 'X'
+    int 10h
+    jmp $  
+    
+    ; Establece modo texto limpio
+    mov ah, 0
+    mov al, 3
+    int 10h
+
+    ; Mostrar mensaje de inicio
+    mov si, mensaje_inicio
+    call print_string
+
+    ; Leer 2 sectores (stage 2 completo) desde disco a 0000:0600
+    mov ah, 02h        ; Función BIOS: leer sectores
+    mov al, 02h        ; Número de sectores: 2
+    mov ch, 0          ; Cilindro 0
+    mov cl, 2          ; Sector 2
+    mov dh, 0          ; Cabeza 0
+    mov dl, 80h        ; Unidad A: (cambia a 80h si usas disco duro)
+    mov bx, 0x0600     ; Offset destino
+    mov ax, 0x0000
+    mov es, ax         ; Segmento destino
+    int 13h
+
+    jc error_lectura   ; Si falla la lectura, salta al error
+
+    ; Mostrar mensaje de éxito
+    mov si, mensaje_ok
+    call print_string
+
+    ; Saltar a ejecutar el código cargado en 0000:0600
+    jmp 0x0000:0x0600
+
+error_lectura:
+    mov si, mensaje_error
+    call print_string
+    jmp $
+
+; --- 🧾 Subrutina para imprimir cadenas por pantalla ---
+
+print_string:
+.next:
+    lodsb
+    or al, al
+    jz .done
+    mov ah, 0x0E
+    int 10h
+    jmp .next
+.done:
+    ret
+
+; --- 🧱 Relleno hasta 510 bytes + firma del MBR ---
+
+times 510 - ($ - $$) db 0
+
+dw 0xAA55
